@@ -1,0 +1,5 @@
+/*! @azure/msal-browser v4.24.1 2025-09-30 */
+
+/*! @azure/msal-common v15.13.0 2025-09-24 */
+
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */
