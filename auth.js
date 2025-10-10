@@ -22,30 +22,49 @@ const msalInstance = new PublicClientApplication(msalConfig);
 
 Office.onReady(async () => {
   console.log("Office prêt, initialisation MSAL...");
+
   try {
     await msalInstance.initialize();
     console.log("MSAL initialisé");
 
-    const redirectResult = await msalInstance.handleRedirectPromise();
-    let tokenResponse = redirectResult;
-    const accounts = msalInstance.getAllAccounts();
+    // ⚠️ Attend la fin d’une redirection éventuelle
+    const redirectResult = await msalInstance.handleRedirectPromise().catch(err => {
+      console.warn("Erreur handleRedirectPromise:", err);
+      return null;
+    });
+
+    let account = null;
+    let tokenResponse = null;
+
+    if (redirectResult && redirectResult.account) {
+      console.log("Retour de redirection OK");
+      account = redirectResult.account;
+      msalInstance.setActiveAccount(account);
+      tokenResponse = redirectResult;
+    } else {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        account = accounts[0];
+        msalInstance.setActiveAccount(account);
+      }
+    }
 
     if (!tokenResponse) {
-      if (accounts.length > 0) {
-        console.log("Compte trouvé, tentative silencieuse...");
+      if (account) {
         try {
+          console.log("Tentative silencieuse...");
           tokenResponse = await msalInstance.acquireTokenSilent({
             scopes: SCOPES,
-            account: accounts[0]
+            account
           });
         } catch (e) {
-          console.log("Token silencieux échoué, redirection...");
-          msalInstance.acquireTokenRedirect({ scopes: SCOPES, account: accounts[0] });
-          return;
+          console.log("Token silencieux échoué → redirection");
+          await msalInstance.acquireTokenRedirect({ scopes: SCOPES });
+          return; // stop, car la redirection va s'effectuer
         }
       } else {
-        console.log("Aucun compte, redirection login...");
-        msalInstance.loginRedirect({ scopes: SCOPES });
+        console.log("Aucun compte → redirection login");
+        await msalInstance.loginRedirect({ scopes: SCOPES });
         return;
       }
     }
@@ -55,6 +74,7 @@ Office.onReady(async () => {
 
     console.log("✅ Token obtenu, envoi à Outlook");
     Office.context.ui.messageParent(JSON.stringify({ accessToken }));
+
   } catch (err) {
     console.error("Auth error:", err);
     try {
