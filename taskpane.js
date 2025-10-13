@@ -134,12 +134,14 @@
       }));
   }
 
-  async function sendEmail(token, to, subject, bodyHtml, attachments = [], cc = [], bcc = []) {
+  async function sendEmail(token, to, subject, bodyHtml, attachments = []) {
     const mail = {
       message: {
         subject: subject || "(Sans sujet)",
         body: { contentType: "HTML", content: bodyHtml || "" },
-        toRecipients: to.map(addr => ({ emailAddress: { address: addr } })),
+        toRecipients: [
+          { emailAddress: { address: to } }
+        ],
         attachments: attachments.map(att => ({
           "@odata.type": "#microsoft.graph.fileAttachment",
           name: att.name,
