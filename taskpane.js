@@ -51,49 +51,33 @@
   }
 
   async function getRecipientsAsync() {
-    return new Promise((resolve, reject) => {
-      Office.context.mailbox.item.to.getAsync((result) => {
-        if (result.status === Office.AsyncResultStatus.Succeeded) {
-          const recipients = (result.value || [])
-            .map(r => (typeof r === "string" ? r : (r.emailAddress || r.address)))
-            .filter(Boolean);
-          resolve(recipients);
-        } else {
-          reject(result.error || new Error("Impossible de lire les destinataires"));
-        }
-      });
+  const getField = (fieldName) => new Promise((resolve) => {
+    Office.context.mailbox.item[fieldName].getAsync((result) => {
+      if (result.status === Office.AsyncResultStatus.Succeeded) {
+        const emails = (result.value || [])
+          .map(r => (typeof r === "string" ? r : (r.emailAddress || r.address)))
+          .filter(Boolean);
+        resolve(emails);
+      } else {
+        resolve([]); // on ignore les erreurs partielles
+      }
     });
-  }
+  });
 
-  async function getCcRecipientsAsync() {
-    return new Promise((resolve, reject) => {
-      Office.context.mailbox.item.cc.getAsync((result) => {
-        if (result.status === Office.AsyncResultStatus.Succeeded) {
-          const recipients = (result.value || [])
-            .map(r => (typeof r === "string" ? r : (r.emailAddress || r.address)))
-            .filter(Boolean);
-          resolve(recipients);
-        } else {
-          reject(result.error || new Error("Impossible de lire les destinataires CC"));
-        }
-      });
-    });
-  }
+  // Récupère les 3 types de destinataires
+  const [to, cc, bcc] = await Promise.all([
+    getField("to"),
+    getField("cc"),
+    getField("bcc")
+  ]);
 
-  async function getBccRecipientsAsync() {
-    return new Promise((resolve, reject) => {
-      Office.context.mailbox.item.bcc.getAsync((result) => {
-        if (result.status === Office.AsyncResultStatus.Succeeded) {
-          const recipients = (result.value || [])
-            .map(r => (typeof r === "string" ? r : (r.emailAddress || r.address)))
-            .filter(Boolean);
-          resolve(recipients);
-        } else {
-          reject(result.error || new Error("Impossible de lire les destinataires CCI"));
-        }
-      });
-    });
-  }
+  // Fusionne tout en supprimant les doublons
+  const allRecipients = [...new Set([...to, ...cc, ...bcc])];
+
+  console.log(`📬 Destinataires trouvés : ${allRecipients.join(", ")}`);
+  return allRecipients;
+}
+
 
   async function getSubjectAsync() {
     return new Promise((resolve, reject) => {
@@ -156,8 +140,6 @@
         subject: subject || "(Sans sujet)",
         body: { contentType: "HTML", content: bodyHtml || "" },
         toRecipients: to.map(addr => ({ emailAddress: { address: addr } })),
-        ccRecipients: cc.map(addr => ({ emailAddress: { address: addr } })),
-        bccRecipients: bcc.map(addr => ({ emailAddress: { address: addr } })),
         attachments: attachments.map(att => ({
           "@odata.type": "#microsoft.graph.fileAttachment",
           name: att.name,
@@ -237,8 +219,6 @@
         });
         return;
       }
-      const ccRecipients = await getCcRecipientsAsync();
-      const bccRecipients = await getBccRecipientsAsync();
       const subject = await getSubjectAsync();
       const bodyHtml = await getBodyHtmlAsync();
 
@@ -256,7 +236,7 @@
       for (const to of recipients) {
         try {
           log(`Envoi à ${to}...`);
-          await sendEmail(accessToken, to, subject, bodyHtml, attachments, ccRecipients, bccRecipients);
+          await sendEmail(accessToken, to, subject, bodyHtml, attachments);
           sent++;
         } catch (err) {
           console.error("Erreur envoi:", err);
