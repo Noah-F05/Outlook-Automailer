@@ -1,4 +1,3 @@
-<script src="https://alcdn.msauth.net/browser/2.32.2/js/msal-browser.min.js"></script>
   Office.onReady(async () => {
     console.log("Office prêt, initialisation MSAL...");
 
