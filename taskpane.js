@@ -104,7 +104,7 @@
   }
 
   async function getAttachmentsFromDraft(itemId, token) {
-  if (!itemId) return [];
+  if (!itemId) return { inline: [], files: [] };
 
   const restId = Office.context.mailbox.convertToRestId(
     itemId,
@@ -126,37 +126,42 @@
 
   const data = await res.json();
 
-  const files = (data.value || [])
-    .filter(att => 
-      att["@odata.type"] === "#microsoft.graph.fileAttachment" &&
-      !att.isInline // ✅ on ignore les images inline
-    )
-    .map(att => ({
+  const inline = [];
+  const files = [];
+
+  for (const att of data.value || []) {
+    if (att["@odata.type"] !== "#microsoft.graph.fileAttachment") continue;
+
+    const attachment = {
+      "@odata.type": "#microsoft.graph.fileAttachment",
       name: att.name,
       contentBytes: att.contentBytes,
       contentType: att.contentType || "application/octet-stream"
-    }));
+    };
 
-  console.log(`📎 ${files.length} pièce(s) jointe(s) non-inline récupérée(s)`);
+    if (att.isInline && att.contentId) {
+      attachment.isInline = true;
+      attachment.contentId = att.contentId;
+      inline.push(attachment);
+    } else {
+      files.push(attachment);
+    }
+  }
 
-  return files;
+  console.log(`📎 ${inline.length} inline(s) + ${files.length} fichier(s) classique(s)`);
+
+  return { inline, files };
 }
 
+  async function sendEmail(token, to, subject, bodyHtml, inlineAttachments = [], fileAttachments = []) {
+    const allAttachments = [...inlineAttachments, ...fileAttachments];
 
-  async function sendEmail(token, to, subject, bodyHtml, attachments = []) {
     const mail = {
       message: {
         subject: subject || "(Sans sujet)",
         body: { contentType: "HTML", content: bodyHtml || "" },
-        toRecipients: [
-          { emailAddress: { address: to } }
-        ],
-        attachments: attachments.map(att => ({
-          "@odata.type": "#microsoft.graph.fileAttachment",
-          name: att.name,
-          contentBytes: att.contentBytes,
-          contentType: att.contentType || "application/octet-stream"
-        }))
+        toRecipients: [{ emailAddress: { address: to } }],
+        attachments: allAttachments
       }
     };
 
