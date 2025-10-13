@@ -104,35 +104,44 @@
   }
 
   async function getAttachmentsFromDraft(itemId, token) {
-    if (!itemId) return [];
+  if (!itemId) return [];
 
-    const restId = Office.context.mailbox.convertToRestId(
-      itemId,
-      Office.MailboxEnums.RestVersion.v2_0
-    );
+  const restId = Office.context.mailbox.convertToRestId(
+    itemId,
+    Office.MailboxEnums.RestVersion.v2_0
+  );
 
-    const res = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${restId}/attachments`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      }
-    });
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Graph error ${res.status}: ${txt}`);
+  const res = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${restId}/attachments`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
     }
+  });
 
-    const data = await res.json();
-    return (data.value || [])
-      .filter(att => att["@odata.type"] === "#microsoft.graph.fileAttachment")
-      .map(att => ({
-        name: att.name,
-        contentBytes: att.contentBytes,
-        contentType: att.contentType || "application/octet-stream"
-      }));
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Graph error ${res.status}: ${txt}`);
   }
+
+  const data = await res.json();
+
+  const files = (data.value || [])
+    .filter(att => 
+      att["@odata.type"] === "#microsoft.graph.fileAttachment" &&
+      !att.isInline // ✅ on ignore les images inline
+    )
+    .map(att => ({
+      name: att.name,
+      contentBytes: att.contentBytes,
+      contentType: att.contentType || "application/octet-stream"
+    }));
+
+  console.log(`📎 ${files.length} pièce(s) jointe(s) non-inline récupérée(s)`);
+
+  return files;
+}
+
 
   async function sendEmail(token, to, subject, bodyHtml, attachments = []) {
     const mail = {
