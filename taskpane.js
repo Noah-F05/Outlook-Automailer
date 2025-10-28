@@ -7,48 +7,84 @@
   }
 
   async function openAuthDialog() {
-    return new Promise((resolve, reject) => {
-      log("Ouverture du dialogue d'auth...");
-      Office.context.ui.displayDialogAsync(
-        AUTH_PAGE,
-        { height: 60, width: 40, displayInIframe: false },
-        (asyncResult) => {
-          if (asyncResult.status === Office.AsyncResultStatus.Failed) {
-            return reject(new Error("Impossible d'ouvrir la fenêtre d'auth"));
-          }
+  return new Promise((resolve, reject) => {
+    log("Ouverture du dialogue d'auth...");
 
-          const dialog = asyncResult.value;
+    let resolved = false;
 
-          dialog.addEventHandler(Office.EventType.DialogMessageReceived, (arg) => {
-            try {
-              const payload = JSON.parse(arg.message);
+    // 🔹 Fallback : écouter les messages globaux (cas Edge ou fenêtre externe)
+    const handleWindowMessage = (event) => {
+      try {
+        if (!event.data) return;
+        const payload = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
 
-              // 🟡 Nouvelle gestion : si auth.html est en redirection, on ignore
-              if (payload.status === "redirecting") {
-                log("L'utilisateur est redirigé vers Microsoft Login...");
-                return;
-              }
-
-              if (payload.accessToken) {
-                resolve(payload.accessToken);
-              } else {
-                reject(new Error(payload.error || "Message inattendu depuis auth.html"));
-              }
-            } catch (e) {
-              reject(e);
-            } finally {
-              try { dialog.close(); } catch {}
-            }
-          });
-
-          dialog.addEventHandler(Office.EventType.DialogEventReceived, (event) => {
-            reject(new Error("Fenêtre d'auth fermée/annulée: " + JSON.stringify(event)));
-            try { dialog.close(); } catch {}
-          });
+        if (payload.status === "redirecting") {
+          log("L'utilisateur est redirigé vers Microsoft Login (fenêtre externe)...");
+          return;
         }
-      );
-    });
-  }
+
+        if (payload.accessToken) {
+          resolved = true;
+          resolve(payload.accessToken);
+        } else if (payload.error) {
+          resolved = true;
+          reject(new Error(payload.error));
+        }
+      } catch (err) {
+        console.error("Erreur réception message externe :", err);
+      } finally {
+        window.removeEventListener("message", handleWindowMessage);
+      }
+    };
+    window.addEventListener("message", handleWindowMessage);
+
+    // 🔸 Méthode standard via API Office (dans Outlook ou Chrome)
+    Office.context.ui.displayDialogAsync(
+      AUTH_PAGE,
+      { height: 60, width: 40, displayInIframe: false },
+      (asyncResult) => {
+        if (asyncResult.status === Office.AsyncResultStatus.Failed) {
+          window.removeEventListener("message", handleWindowMessage);
+          return reject(new Error("Impossible d'ouvrir la fenêtre d'auth"));
+        }
+
+        const dialog = asyncResult.value;
+
+        dialog.addEventHandler(Office.EventType.DialogMessageReceived, (arg) => {
+          if (resolved) return; // déjà traité via window message
+          try {
+            const payload = JSON.parse(arg.message);
+
+            if (payload.status === "redirecting") {
+              log("L'utilisateur est redirigé vers Microsoft Login (dialogue)...");
+              return;
+            }
+
+            if (payload.accessToken) {
+              resolved = true;
+              resolve(payload.accessToken);
+            } else {
+              reject(new Error(payload.error || "Message inattendu depuis auth.html"));
+            }
+          } catch (e) {
+            reject(e);
+          } finally {
+            try { dialog.close(); } catch {}
+            window.removeEventListener("message", handleWindowMessage);
+          }
+        });
+
+        dialog.addEventHandler(Office.EventType.DialogEventReceived, (event) => {
+          if (!resolved) {
+            reject(new Error("Fenêtre d'auth fermée ou annulée: " + JSON.stringify(event)));
+          }
+          try { dialog.close(); } catch {}
+          window.removeEventListener("message", handleWindowMessage);
+        });
+      }
+    );
+  });
+}
 
   async function getRecipientsAsync() {
   const getField = (fieldName) => new Promise((resolve) => {
