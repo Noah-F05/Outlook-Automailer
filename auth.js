@@ -1,4 +1,4 @@
-(async () => {
+(async () => { 
   console.log("Initialisation MSAL...");
 
   const CLIENT_ID = "666aff85-bd89-449e-8fd7-0dbe41ed5f69";
@@ -22,6 +22,9 @@
 
   const sendMessage = (payload) => {
     try {
+      // 🔹 Stocke aussi le message dans localStorage (canal de secours)
+      localStorage.setItem("automailer_auth", JSON.stringify(payload));
+
       if (window.Office && Office.context && Office.context.ui) {
         Office.context.ui.messageParent(JSON.stringify(payload));
       } else if (window.opener) {
@@ -47,7 +50,7 @@
             account: accounts[0]
           });
         } catch {
-          console.log("🔁 Token silencieux échoué → redirection");
+          console.log("Token silencieux échoué → redirection");
           sendMessage({ status: "redirecting" });
           await msalInstance.acquireTokenRedirect({ scopes: SCOPES, account: accounts[0] });
           return;
@@ -70,3 +73,4 @@
     sendMessage({ error: err.message || String(err) });
   }
 })();
+ 
