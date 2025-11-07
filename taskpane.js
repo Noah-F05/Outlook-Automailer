@@ -7,7 +7,7 @@
   }
 
   // =============================================
-  // 1️⃣ OUVERTURE DU DIALOGUE D’AUTHENTIFICATION
+  // OUVERTURE DU DIALOGUE D’AUTHENTIFICATION
   // =============================================
   async function openAuthDialog() {
     return new Promise((resolve, reject) => {
@@ -16,7 +16,7 @@
       let resolved = false;
       let checkLocalStorage = null;
 
-      // 🔹 Fallback : écouter aussi les messages globaux (cas Edge)
+      // Fallback : écouter aussi les messages globaux (cas Edge)
       const handleWindowMessage = (event) => {
         try {
           if (!event.data) return;
@@ -42,7 +42,7 @@
       };
       window.addEventListener("message", handleWindowMessage);
 
-      // 🔄 Fallback localStorage (Edge)
+      // Fallback localStorage (Edge)
       checkLocalStorage = setInterval(() => {
         try {
           const raw = localStorage.getItem("automailer_auth");
@@ -111,7 +111,7 @@
   }
 
   // =============================================
-  // 2️⃣ RÉCUPÉRATION DES DESTINATAIRES (TO / CC / BCC)
+  // RÉCUPÉRATION DES DESTINATAIRES (TO / CC / BCC)
   // =============================================
   async function getRecipientsAsync() {
     const getField = (fieldName) => new Promise((resolve) => {
@@ -139,7 +139,7 @@
   }
 
   // =============================================
-  // 3️⃣ SUJET + CORPS HTML
+  // SUJET + CORPS HTML
   // =============================================
   async function getSubjectAsync() {
     return new Promise((resolve, reject) => {
@@ -166,7 +166,7 @@
   }
 
   // =============================================
-  // 4️⃣ RÉCUPÉRATION DES PIÈCES JOINTES + IMAGES INLINE
+  // RÉCUPÉRATION DES PIÈCES JOINTES + IMAGES INLINE
   // =============================================
   async function getAttachmentsFromDraft(itemId, token) {
     if (!itemId) return { inline: [], files: [] };
@@ -211,7 +211,7 @@
   }
 
   // =============================================
-  // 5️⃣ ENVOI DES MAILS
+  // ENVOI DES MAILS
   // =============================================
   async function sendEmail(token, to, subject, bodyHtml, inlineAttachments = [], fileAttachments = []) {
     const allAttachments = [...(inlineAttachments || []), ...(fileAttachments || [])];
@@ -248,7 +248,7 @@
   }
 
   // =============================================
-  // 6️⃣ SAUVEGARDE + SUPPRESSION DU DRAFT
+  // SAUVEGARDE + SUPPRESSION DU DRAFT
   // =============================================
   async function saveDraftIfNeeded() {
     return new Promise((resolve, reject) => {
@@ -277,7 +277,7 @@
   }
 
   // =============================================
-  // 7️⃣ ACTION PRINCIPALE
+  // ACTION PRINCIPALE
   // =============================================
   async function run() {
     try {

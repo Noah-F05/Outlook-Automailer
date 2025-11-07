@@ -18,7 +18,7 @@
 
   const msalInstance = new msal.PublicClientApplication(msalConfig);
   await msalInstance.initialize();
-  console.log("✅ MSAL initialisé");
+  console.log("MSAL initialisé");
 
   const sendMessage = (payload) => {
     try {
@@ -30,7 +30,7 @@
       } else if (window.opener) {
         window.opener.postMessage(payload, "*");
       } else {
-        console.warn("⚠️ Aucun canal de communication trouvé (ni Office, ni opener)");
+        console.warn("Aucun canal de communication trouvé (ni Office, ni opener)");
       }
     } catch (err) {
       console.error("Erreur envoi message :", err);
@@ -66,7 +66,7 @@
     const accessToken = tokenResponse?.accessToken;
     if (!accessToken) throw new Error("Impossible de récupérer le token");
 
-    console.log("✅ Token acquis !");
+    console.log("Token acquis !");
     sendMessage({ accessToken });
   } catch (err) {
     console.error("Auth error:", err);
